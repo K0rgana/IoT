@@ -1,26 +1,49 @@
-import ssl
-from paho import mqtt
 import paho.mqtt.client as paho
-import paho.mqtt.publish as publish
+from paho import mqtt
+
 import random
-import json
+import time
 
 brokerUrl = "821032442a5c4b30982ba8c1b2085d07.s2.eu.hivemq.cloud"
 brokerPort = 8883
 brokerUsername = "morgana"
 brokerPassword = "morgana01"
-temp = random.randint(17,25)
-pres = bool(random.choice([True, False]))
 
-# create a set of 2 test messages that will be published at the same time
-msgs = [
-  {'topic': "lab/temperature", 'payload': (temp)}, ("lab/presence", (pres), 0, False)
-]
+client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
+client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+client.username_pw_set(brokerUsername, brokerPassword)
+client.connect(brokerUrl, brokerPort)
 
-# use TLS for secure connection with HiveMQ Cloud
-sslSettings = ssl.SSLContext(mqtt.client.ssl.PROTOCOL_TLS)
+def mock_number(min, max): 
+  return random.randrange(min,max)
 
-# put in your cluster credentials and hostname
-auth = {'username': brokerUsername, 'password': brokerPassword}
-publish.multiple(msgs, hostname=brokerUrl, port=brokerPort, auth=auth,
-                 tls=sslSettings, protocol=paho.MQTTv31)
+def mock_presence(): 
+  list = [1, 0]
+  return random.choice(list)
+
+def mock_topic(): 
+  list = ['temperature', 'presence']
+  return random.choice(list)
+
+def mock_msgs(max):
+  i=0
+  payload = []
+  while (i<max):
+      topic = mock_topic()
+      if topic == 'temperature':
+        temp = mock_number(17,25)  
+        msg = {'topic':'lab/temperature', 'payload': temp}
+      if topic == 'presence':
+        pres = mock_presence()  
+        msg = {'topic':'lab/presence', 'payload': pres}
+      payload.append(msg)
+      i=i+1
+  return payload
+
+qnt = mock_number(5, 15)
+msgs = mock_msgs(qnt)
+for el in msgs:
+  time.sleep(5)
+  #client.publish("lab/temperature", payload="21", qos=1, retain=True)
+  client.publish(el["topic"], payload=el["payload"], qos=1, retain=True)
+  print(el)
